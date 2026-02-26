@@ -1,0 +1,117 @@
+function [dominantAnglePrimary, dominantAngleWeighted, ROI, isNearZeroOr180, peakAngles] = findAdaptiveROI_Check(BinCenters, Counts, tolerance)
+% FINDADAPTIVEROI_CHECK (Circular version)
+% Handles 0°/180° wrap-around correctly when detecting dominant orientation peaks.
+% peakAngles represent dominant edge (or rain-streak) orientations,
+% dominantAnglePrimary = The primary dominant orientation — the strongest peak in the orientation histogram. Represents the most prevalent edge or streak direction.
+% dominantAngleWeighted = The weighted mean orientation computed over all significant peaks, using their peak magnitudes as weights. Captures the overall directional bias in the scene.
+% ROI = Set of adaptive angular Regions of Interest (ROIs), where each row defines a start and end angle around a strong peak. Adjacent or overlapping intervals are merged into continuous ranges.
+% isNearZeroOr180 = Binary flag indicating whether the primary dominant orientation lies close to the wrap-around boundary (i.e., near 0° or 180°).
+% peakAngles = List of detected significant orientation peaks after filtering and merging. Represents dominant edge orientation modes in the image.
+
+
+%% --- Step 0: Circular extension to handle 0°/180° continuity ---
+extendBins = 3;  % 3 bins (~15° each side)
+CountsExt  = [Counts(end-extendBins+1:end), Counts, Counts(1:extendBins)];
+CentersExt = [BinCenters(end-extendBins+1:end)-180, BinCenters, BinCenters(1:extendBins)+180];
+
+%% --- Step 1: Smooth extended histogram ---
+smoothCounts = smoothdata(CountsExt, 'gaussian', 3);
+
+%% --- Step 2: Find significant peaks on extended domain ---
+[pks, locs] = findpeaks(smoothCounts, CentersExt, ...
+    'MinPeakProminence', 0.05 * max(smoothCounts), ...
+    'MinPeakDistance', 5);
+
+%% --- Step 3: Fallback if no peaks found ---
+if isempty(pks)
+    [~, idxMax] = max(Counts);
+    pks = Counts(idxMax);
+    locs = BinCenters(idxMax);
+end
+
+%% --- Step 4: Wrap detected angles back into [0,180] range ---
+locs = mod(locs, 180);
+
+%% --- Step 5: Merge peaks near 0° and 180° (same physical direction) ---
+wrapMask = (locs < tolerance) | (locs > 180 - tolerance);
+if sum(wrapMask) >= 2
+    wrapCount = sum(pks(wrapMask));
+    wrapAngle = mean(locs(wrapMask));
+    % Remove old peaks and replace with one merged vertical peak
+    pks = [pks(~wrapMask), wrapCount];
+    locs = [locs(~wrapMask), wrapAngle];
+end
+
+%% --- Step 6: Filter out weak peaks ---
+strongMask = pks >= 0.2 * max(pks);
+pks = pks(strongMask);
+locs = locs(strongMask);
+peakAngles = locs(:)';
+
+%% --- Step 7: Build adaptive ROI for each strong peak ---
+nPeaks = length(locs);
+ROI = zeros(nPeaks * 2, 2);  % preallocate with upper bound (since wrap can add one more)
+roiCount = 0;
+
+for i = 1:nPeaks
+    ang = locs(i);
+    cnt = pks(i);
+
+    % Local flatness ratio
+    [~, idx] = min(abs(BinCenters - ang));
+    neighborIdx = max(1, idx - 2):min(length(Counts), idx + 2);
+    localMean = mean(Counts(neighborIdx));
+    flatnessRatio = cnt / max(1, localMean);
+
+    % Adaptive width
+    if flatnessRatio < 1.3
+        roiWidth = 25;
+    elseif flatnessRatio > 2
+        roiWidth = 10;
+    else
+        roiWidth = 15;
+    end
+
+    % Handle wrap-around
+    if (ang < tolerance) || (ang > 180 - tolerance)
+        roiCount = roiCount + 1;
+        ROI(roiCount, :) = [0, roiWidth];
+        roiCount = roiCount + 1;
+        ROI(roiCount, :) = [180 - roiWidth, 180];
+    else
+        roiCount = roiCount + 1;
+        ROI(roiCount, :) = [max(0, ang - roiWidth), min(180, ang + roiWidth)];
+    end
+end
+
+ROI = ROI(1:roiCount, :);  % trim unused rows
+
+%% --- Step 8: Merge overlapping intervals ---
+if isempty(ROI)
+    ROI = [0, 0];
+else
+    ROI = sortrows(ROI);
+    merged = zeros(size(ROI));  % preallocate
+    mCount = 1;
+    cur = ROI(1,:);
+    for i = 2:size(ROI,1)
+        if ROI(i,1) <= cur(2)
+            cur(2) = max(cur(2), ROI(i,2));
+        else
+            merged(mCount,:) = cur;
+            mCount = mCount + 1;
+            cur = ROI(i,:);
+        end
+    end
+    merged(mCount,:) = cur;
+    ROI = merged(1:mCount,:);
+end
+
+%% --- Step 9: Compute dominant angles (primary & weighted) ---
+[~, idxMax] = max(pks);
+dominantAnglePrimary = locs(idxMax);
+dominantAngleWeighted = sum((pks / sum(pks)) .* locs);
+
+%% --- Step 10: Check wrap-around condition ---
+isNearZeroOr180 = (dominantAnglePrimary < tolerance) || (dominantAnglePrimary > 180 - tolerance);
+end
