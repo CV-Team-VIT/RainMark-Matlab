@@ -1,12 +1,14 @@
 clc, clear all
 close all
 
+% Auto-detect project root relative to this script
+this_dir = fileparts(mfilename('fullpath'));
+project_root = fullfile(this_dir, '..');
+
 % Read images
-% Rain = imread('Rain_Data/rainy/15_14.jpg'); % represented by I
-% GT = imread('Rain_Data/groundtruth/15.jpg'); % represented by J
-Rain = imread('Sample/SF3/2.png'); % represented by I
-GT = imread('Sample/SF3/GT_303.png'); % represented by J
-figure,imshow(Rain); 
+Rain = imread(fullfile(project_root, 'data', 'sample_images', 'SF3', '2.png')); % represented by I
+GT = imread(fullfile(project_root, 'data', 'sample_images', 'SF3', 'GT_303.png')); % represented by J
+figure,imshow(Rain);
 
 %% Rain streak detector
 % Analyze rain streaks

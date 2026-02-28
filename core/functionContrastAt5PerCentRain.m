@@ -1,6 +1,6 @@
 function [Mask, Crr, dominantAnglePrimary, dominantAngleWeighted, ROI, angles] = functionContrastAt5PerCentRain(I1, S, percentage)
-%% Objective: 
-% Identify visibly contrasting edges in a grayscale image I1 
+%% Objective:
+% Identify visibly contrasting edges in a grayscale image I1
 % based on local contrast estimation using Weber contrast.
 % Outputs also include dominant orientation and 8 sampled angles (for GT use).
 
@@ -137,7 +137,7 @@ end
 xlabel('Orientation (degrees)','FontSize',12,'FontWeight','bold');
 ylabel('Frequency','FontSize',12,'FontWeight','bold');
 title('Orientation Histogram with Dominant Angles and Adaptive ROIs',...
-      'FontSize',14,'FontWeight','bold');
+    'FontSize',14,'FontWeight','bold');
 xlim([0 180]); ylim([0 yMax]); hold off;
 
 %% --- Morphological processing along sampled angles ---
@@ -192,7 +192,7 @@ for ii = 1:round(S/2):nl
                 for mm = 2:S
                     if Ismin(nn,mm) <= s && Ismax(nn,mm) > s
                         Cgxx1(pg) = min(abs(s-Is(nn,mm))/max(s,Is(nn,mm)), ...
-                                        abs(s-Is(nn,mm-1))/max(s,Is(nn,mm-1)));
+                            abs(s-Is(nn,mm-1))/max(s,Is(nn,mm-1)));
                         pg = pg + 1;
                         Fcube(nn,mm,s-Ismin_r+1)   = true;
                         Fcube(nn,mm-1,s-Ismin_r+1) = true;

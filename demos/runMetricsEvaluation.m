@@ -1,15 +1,17 @@
 close all
 clear all
 clc
+% Auto-detect project root relative to this script
+this_dir = fileparts(mfilename('fullpath'));
+project_root = fullfile(this_dir, '..');
+
 % read the GT
-% ImagePath1 = 'sots_compliation/OurN_OTS_Result/our1_0060.png';
-ImagePath1 = 'Sample/SF3/1.png';
+ImagePath1 = fullfile(project_root, 'data', 'sample_images', 'SF3', '1.png');
 input = imread(ImagePath1);
 figure, imshow(input);
-% Ref = double(input)./255;
+
 % read the restored image
-% ImagePath2 = 'SPRINGER/outdoor/No_weights/8_dc.jpg';
-ImagePath2 = 'Sample/SF3/GT_152.png';
+ImagePath2 = fullfile(project_root, 'data', 'sample_images', 'SF3', 'GT_152.png');
 output = imread(ImagePath2);
 figure, imshow(output);
 % A = double(output)./255;
